@@ -8,9 +8,13 @@
 
 import UIKit
 
-class BusinessesViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
+class BusinessesViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchResultsUpdating {
     
     var businesses: [Business]!
+    
+    var searchController: UISearchController!
+    
+    var filteredData: [Business]!
     
     @IBOutlet weak var tableView: UITableView!
     
@@ -21,6 +25,26 @@ class BusinessesViewController: UIViewController, UITableViewDataSource, UITable
         tableView.dataSource = self
         tableView.rowHeight = UITableViewAutomaticDimension
         tableView.estimatedRowHeight = 120
+        
+        searchController = UISearchController(searchResultsController: nil)
+        searchController.searchResultsUpdater = self
+        searchController.searchBar.sizeToFit()
+        searchController.searchBar.barTintColor = UIColor.red
+        searchController.dimsBackgroundDuringPresentation = false
+        
+        definesPresentationContext = true
+        
+        // By default the navigation bar hides when presenting the
+        // search interface.  Obviously we don't want this to happen if
+        // our search bar is inside the navigation bar.
+        searchController.hidesNavigationBarDuringPresentation = false
+        
+        navigationItem.titleView = searchController?.searchBar
+        if let navigationBar = navigationController?.navigationBar {
+            navigationBar.barTintColor = UIColor.red
+        }
+        
+        filteredData = businesses
         
         Business.searchWithTerm(term: "Thai", completion: { (businesses: [Business]?, error: Error?) -> Void in
             
@@ -57,7 +81,11 @@ class BusinessesViewController: UIViewController, UITableViewDataSource, UITable
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         if businesses != nil {
-            return businesses.count
+            if searchController.isActive && searchController.searchBar.text != "" {
+                return filteredData.count
+            } else {
+                return businesses.count
+            }
         } else {
             return 0
         }
@@ -66,9 +94,26 @@ class BusinessesViewController: UIViewController, UITableViewDataSource, UITable
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "BusinessCell", for: indexPath) as! BusinessCell
         
-        cell.business = businesses[indexPath.row]
+        if searchController.isActive && searchController.searchBar.text != "" {
+            cell.business = filteredData[indexPath.row]
+            
+        } else {
+            cell.business = businesses[indexPath.row]
+        }
         
         return cell
+    }
+    
+    func filterContentForSearchText(_ searchText: String, scope: String = "All") {
+        filteredData = businesses.filter { business in
+            return business.name!.lowercased().contains(searchText.lowercased())
+        }
+        
+        tableView.reloadData()
+    }
+    
+    func updateSearchResults(for searchController: UISearchController) {
+        filterContentForSearchText(searchController.searchBar.text!)
     }
     
     /*
